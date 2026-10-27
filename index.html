@@ -1697,18 +1697,19 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
   function soBal(a){
     var b=a.start_balance;
     SO.movs.forEach(function(m){if(m.account_id===a.id)b+=m.kind==="out"?-m.amount:m.amount;});
-    SO.ops.forEach(function(o){if(o.account_id===a.id)b+=(o.kind==="buy"?-1:1)*o.quantity*o.price;});
+    SO.ops.forEach(function(o){if(o.account_id===a.id)b+=soOpCash(o);});
     return b;
   }
   function soVis(keep){return SO.accs.filter(function(a){return !a.hidden||a.id===keep;});}
   function soHid(){return SO.accs.filter(function(a){return a.hidden;});}
   function soPatList(){var l=soVis().map(function(a){return {n:a.name,v:soBal(a)};}),h=soHid().reduce(function(t,a){return t+soBal(a);},0);if(Math.abs(h)>=0.005)l.push({n:"Conti nascosti",v:h});l.push({n:"Investimenti",v:soInv()});return l;}
+  function soOpCash(o){var f=o.fee||0;return o.kind==="buy"?-(o.quantity*o.price+f):o.quantity*o.price-f;}
   function soAccTotal(){return SO.accs.reduce(function(s,a){return s+soBal(a);},0);}
   function soCalc(){
     SO.assets.forEach(function(a){
       var ops=SO.ops.filter(function(o){return o.asset_id===a.id;}).sort(function(x,y){return x.day<y.day?-1:x.day>y.day?1:x.id-y.id;});
       var q=0,avg=0,since=null;
-      ops.forEach(function(o){if(!since)since=o.day;if(o.kind==="buy"){avg=(q*avg+o.quantity*o.price)/(q+o.quantity);q+=o.quantity;}else{q=Math.max(0,q-o.quantity);}});
+      ops.forEach(function(o){if(!since)since=o.day;if(o.kind==="buy"){avg=(q*avg+o.quantity*o.price+(o.fee||0))/(q+o.quantity);q+=o.quantity;}else{q=Math.max(0,q-o.quantity);}});
       a.q=q;a.avg=avg;a.since=since||todayIso;a._ops=ops;
     });
   }
@@ -1724,7 +1725,7 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
     SO.movs=(d.movements||[]).map(function(r){r.amount=Number(r.amount);return r;});soSort();
     SO.quick=(d.quick||[]).map(function(r){r.amount=Number(r.amount);return r;}).sort(function(a,b){return a.position-b.position||a.id-b.id;});
     SO.assets=(d.assets||[]).map(function(r){r.price=Number(r.price)||0;return r;}).sort(function(a,b){return a.position-b.position||a.id-b.id;});
-    SO.ops=(d.ops||[]).map(function(r){r.quantity=Number(r.quantity);r.price=Number(r.price);return r;});
+    SO.ops=(d.ops||[]).map(function(r){r.quantity=Number(r.quantity);r.price=Number(r.price);r.fee=Number(r.fee)||0;return r;});
     SO.prices={};(d.prices||[]).forEach(function(p){(SO.prices[p.asset_id]=SO.prices[p.asset_id]||[]).push({d:p.day,p:Number(p.price)});});
     Object.keys(SO.prices).forEach(function(k){SO.prices[k].sort(function(a,b){return a.d<b.d?-1:1;});});
     if(d.goal!=null&&Number(d.goal)>0){SO.goal=Number(d.goal);SO.goalOk=true;}else if(d.goal===undefined)SO.goalOk=false;
@@ -1898,7 +1899,7 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
   }
   function soOpSheet(pre){
     if(!SO.assets.length&&pre!=="new")pre="new";
-    var st={id:pre||SO.assets[0].id,kind:"buy",acc:"none",ty:"ETF"},qty=soTxt("0","","decimal"),prc=soTxt("0,00","","decimal"),nn=soTxt("Nome (es. ETF Europa)"),tk=soTxt("Sigla (es. VWCE)"),tot=el("div","note",""),dt=el("input");
+    var st={id:pre||SO.assets[0].id,kind:"buy",acc:"none",ty:"ETF"},qty=soTxt("0","","decimal"),prc=soTxt("0,00","","decimal"),fee=soTxt("0,00","","decimal"),nn=soTxt("Nome (es. ETF Europa)"),tk=soTxt("Sigla (es. VWCE)"),tot=el("div","note",""),dt=el("input");
     dt.type="date";dt.value=todayIso;dt.max=todayIso;
     soSheet("Nuova operazione","Registra",function(b,valid){
       b.appendChild(segmented([["buy","Acquisto"],["sell","Vendita"]],"buy",function(v){st.kind=v;upd();}));
@@ -1906,22 +1907,23 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
       g.appendChild(fieldRow("Cosa",sel));
       var tsel=soSelect(["ETF","Azioni","Crypto","Materie prime","Obbligazioni","Altro"].map(function(x){return [x,x];}),"ETF");tsel.onchange=function(){st.ty=tsel.value;};
       var rn=fieldRow("Nome",nn),rt=fieldRow("Sigla",tk),ry=fieldRow("Tipo",tsel);rn.hidden=rt.hidden=ry.hidden=st.id!=="new";g.appendChild(rn);g.appendChild(rt);g.appendChild(ry);
-      g.appendChild(fieldRow("Quantità",qty));g.appendChild(fieldRow("Prezzo per unità €",prc));g.appendChild(fieldRow("Data",dt));
+      g.appendChild(fieldRow("Quantità",qty));g.appendChild(fieldRow("Prezzo per unità €",prc));g.appendChild(fieldRow("Commissione €",fee));g.appendChild(fieldRow("Data",dt));
       var as=soSelect([["none","Nessuno (già posseduto)"]].concat(soVis().map(function(a){return [a.id,a.name];})),"none");as.onchange=function(){st.acc=as.value;upd();};g.appendChild(fieldRow("Soldi da/verso",as));
       b.appendChild(g);b.appendChild(tot);
       sel.onchange=function(){st.id=sel.value==="new"?"new":Number(sel.value);rn.hidden=rt.hidden=ry.hidden=st.id!=="new";if(st.id!=="new"){var a=soAsset(st.id);prc.value=String(a.price).replace(".",",");}upd();};
       if(st.id!=="new"&&soAsset(st.id))prc.value=String(soAsset(st.id).price).replace(".",",");
-      function upd(){var q=soNum(qty.value),p=soNum(prc.value),m=q>0&&p>0?(st.kind==="buy"?"Spendi ":"Incassi ")+soEur(q*p)+" in totale. ":"";
-        var n2=st.acc==="none"?"I tuoi conti non cambiano: va bene per un investimento che hai già. Scegli un conto solo se stai comprando adesso con quei soldi.":(st.kind==="buy"?"Il saldo di quel conto scende di "+soEur(q*p)+".":"Il saldo di quel conto sale di "+soEur(q*p)+".");
+      function upd(){var q=soNum(qty.value),p=soNum(prc.value),f=Math.max(0,soNum(fee.value)||0),net=st.kind==="buy"?q*p+f:q*p-f,m=q>0&&p>0?(st.kind==="buy"?"Spendi ":"Incassi ")+soEur(net)+" in totale"+(f>0?" (commissione "+soEur(f)+" compresa)":"")+". ":"";
+        var n2=st.acc==="none"?"I tuoi conti non cambiano: va bene per un investimento che hai già. Scegli un conto solo se stai comprando adesso con quei soldi.":(st.kind==="buy"?"Il saldo di quel conto scende di "+soEur(net)+".":"Il saldo di quel conto sale di "+soEur(net)+".");
         tot.textContent=m+n2;
         var over=false;if(st.kind==="sell"&&st.id!=="new"){var a2=soAsset(st.id);over=a2&&q>a2.q+1e-9;if(over)tot.textContent="Stai vendendo più di quello che possiedi ("+soFmt(a2.q,4)+").";}
         valid(q>0&&p>0&&!over&&(st.id!=="new"||(nn.value.trim()&&tk.value.trim())));}
-      qty.oninput=prc.oninput=nn.oninput=tk.oninput=upd;dt.oninput=upd;upd();
+      qty.oninput=prc.oninput=fee.oninput=nn.oninput=tk.oninput=upd;dt.oninput=upd;upd();
     },function(){
-      var q=soNum(qty.value),p=soNum(prc.value),day=dt.value||todayIso,acc=st.acc==="none"?null:Number(st.acc);
+      var q=soNum(qty.value),p=soNum(prc.value),fe=Math.max(0,soNum(fee.value)||0),day=dt.value||todayIso,acc=st.acc==="none"?null:Number(st.acc);
       function addOp(a){
-        return DB.soIns("asset_ops",{asset_id:a.id,day:day,kind:st.kind,quantity:q,price:p,account_id:acc}).then(function(o){
-          o.quantity=Number(o.quantity);o.price=Number(o.price);SO.ops.push(o);
+        var row={asset_id:a.id,day:day,kind:st.kind,quantity:q,price:p,account_id:acc};if(fe>0)row.fee=fe;
+        return DB.soIns("asset_ops",row).then(function(o){
+          o.quantity=Number(o.quantity);o.price=Number(o.price);o.fee=Number(o.fee)||0;SO.ops.push(o);
           var last=soLastPriceDay(a),jobs=[soPrice(a,day,p)];
           if(day>=last){a.price=p;jobs.push(DB.soUpd("assets",a.id,{price:p}));}
           return Promise.all(jobs);
@@ -1939,7 +1941,7 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
       var g=el("div","group");g.appendChild(fieldRow("Nome",nm));g.appendChild(fieldRow("Sigla",tk));g.appendChild(fieldRow("Tipo",ty));b.appendChild(g);
       b.appendChild(el("div","dayh")).appendChild(el("span",null,"Operazioni"));
       var og=el("div","group");
-      a._ops.slice().reverse().forEach(function(o){var r=el("div","row");r.style.cursor="default";var ct=el("span","ct");ct.appendChild(el("b",null,(o.kind==="buy"?"Acquisto ":"Vendita ")+soFmt(o.quantity,o.quantity<1?4:2)));ct.appendChild(el("small",null,soDayLabel(o.day)+" · a "+soEur(o.price)));r.appendChild(ct);
+      a._ops.slice().reverse().forEach(function(o){var r=el("div","row");r.style.cursor="default";var ct=el("span","ct");ct.appendChild(el("b",null,(o.kind==="buy"?"Acquisto ":"Vendita ")+soFmt(o.quantity,o.quantity<1?4:2)));ct.appendChild(el("small",null,soDayLabel(o.day)+" · a "+soEur(o.price)+(o.fee?" · comm. "+soEur(o.fee):"")));r.appendChild(ct);
         r.appendChild(ibtn('<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',"Elimina operazione",function(){DB.soDel("asset_ops",o.id).then(function(){SO.ops=SO.ops.filter(function(x){return x!==o;});close();soRenderAll();soToast("Operazione eliminata");}).catch(function(e){fail("Non sono riuscito a eliminare.",e);});}));og.appendChild(r);});
       if(!a._ops.length)og.appendChild(el("div","row muted","Nessuna operazione."));b.appendChild(og);
       b.appendChild(dangerRow("Elimina investimento",null,function(reset){DB.soDel("assets",a.id).then(function(){SO.assets=SO.assets.filter(function(x){return x!==a;});SO.ops=SO.ops.filter(function(o){return o.asset_id!==a.id;});if(SO.sel===a.id)SO.sel="tot";close();soRenderAll();soToast("Investimento eliminato");}).catch(function(e){reset();fail("Non sono riuscito a eliminare.",e);});}));
@@ -2119,7 +2121,7 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
     var hv=el("div","muted");hv.style.cssText="font-size:14px;margin-bottom:6px;font-variant-numeric:tabular-nums";ch.appendChild(hv);var host=el("div","chart plain");ch.appendChild(host);v.appendChild(ch);
     var pts=[],i,cm=todayIso.slice(0,7);
     for(i=5;i>=0;i--){var mm=soShiftMonth(cm,-i),end=i===0?todayIso:new Date(+mm.slice(0,4),+mm.slice(5),0).getFullYear()+"-"+String(new Date(+mm.slice(0,4),+mm.slice(5),0).getMonth()+1).padStart(2,"0")+"-"+String(new Date(+mm.slice(0,4),+mm.slice(5),0).getDate()).padStart(2,"0");
-      var val=0;SO.accs.forEach(function(a){var b=a.start_balance;SO.movs.forEach(function(m){if(m.account_id===a.id&&m.day<=end)b+=m.kind==="out"?-m.amount:m.amount;});SO.ops.forEach(function(o){if(o.account_id===a.id&&o.day<=end)b+=(o.kind==="buy"?-1:1)*o.quantity*o.price;});val+=b;});
+      var val=0;SO.accs.forEach(function(a){var b=a.start_balance;SO.movs.forEach(function(m){if(m.account_id===a.id&&m.day<=end)b+=m.kind==="out"?-m.amount:m.amount;});SO.ops.forEach(function(o){if(o.account_id===a.id&&o.day<=end)b+=soOpCash(o);});val+=b;});
       SO.assets.forEach(function(a){val+=soQtyAt(a,end)*soPriceAt(a,soDayNum(end));});
       pts.push({v:val,l:MESI3[+mm.slice(5)-1]});}
     soLine(host,pts,{label:"Patrimonio negli ultimi sei mesi",tick:function(x){return Math.abs(x)>=1000?soFmt(x/1000,1)+"k":soFmt(x,0);},x0:pts[0].l,x1:pts[5].l,hover:function(k){hv.textContent=pts[k].l+" · "+soEur(pts[k].v,0);}});hv.textContent=pts[5].l+" · "+soEur(pts[5].v,0);
