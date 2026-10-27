@@ -1700,6 +1700,9 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
     SO.ops.forEach(function(o){if(o.account_id===a.id)b+=(o.kind==="buy"?-1:1)*o.quantity*o.price;});
     return b;
   }
+  function soVis(keep){return SO.accs.filter(function(a){return !a.hidden||a.id===keep;});}
+  function soHid(){return SO.accs.filter(function(a){return a.hidden;});}
+  function soPatList(){var l=soVis().map(function(a){return {n:a.name,v:soBal(a)};}),h=soHid().reduce(function(t,a){return t+soBal(a);},0);if(Math.abs(h)>=0.005)l.push({n:"Conti nascosti",v:h});l.push({n:"Investimenti",v:soInv()});return l;}
   function soAccTotal(){return SO.accs.reduce(function(s,a){return s+soBal(a);},0);}
   function soCalc(){
     SO.assets.forEach(function(a){
@@ -1766,7 +1769,7 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
     soRun(DB.soDel("movements",id));return m;
   }
   function soQuickAdd(q){
-    var order=SO.accs.slice().sort(function(a,b){return a.id===q.last_account_id?-1:b.id===q.last_account_id?1:0;});
+    var order=soVis().sort(function(a,b){return a.id===q.last_account_id?-1:b.id===q.last_account_id?1:0;});
     if(!order.length){toast("Crea prima un conto da Patrimonio.");return;}
     soSheet("Da quale conto?","Chiudi",function(b,valid,close){
       var hd=el("div","panel");hd.style.textAlign="center";var big=el("div",null,q.emoji+" "+q.name);big.style.cssText="font-size:22px;font-weight:800";hd.appendChild(big);
@@ -1783,7 +1786,7 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
     },function(){});
   }
   function soMovSheet(m){
-    var st={kind:m?m.kind:"out",cat:m?m.category_id:(soCatsOf("out")[1]||soCatsOf("out")[0]||{}).id,acc:m?m.account_id:(SO.accs[1]||SO.accs[0]||{}).id};
+    var st={kind:m?m.kind:"out",cat:m?m.category_id:(soCatsOf("out")[1]||soCatsOf("out")[0]||{}).id,acc:m?m.account_id:(soVis()[1]||soVis()[0]||{}).id};
     var amt=soTxt("0,00",m?soFmt(m.amount).replace(/\./g,""):"","decimal"),note=soTxt("Aggiungi una nota (facoltativa)",m&&m.note?m.note:""),dt=el("input");
     dt.type="date";dt.value=m?m.day:todayIso;amt.className="valbig";
     if(!SO.accs.length){toast("Crea prima un conto da Patrimonio.");return;}
@@ -1793,7 +1796,7 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
       var host=el("div");b.appendChild(host);
       function drawChips(){host.innerHTML="";host.appendChild(el("div","dayh")).appendChild(el("span",null,"Categoria"));host.appendChild(soChips(soCatsOf(st.kind),st.cat,function(k){st.cat=k;},function(){soCatManager(st.kind);}));}
       drawChips();SO.catHook=function(){if(!host.isConnected)return;if(!soCat(st.cat))st.cat=(soCatsOf(st.kind)[0]||{}).id;drawChips();};
-      var g=el("div","group"),sel=soSelect(SO.accs.map(function(a){return [a.id,a.name];}),st.acc);sel.onchange=function(){st.acc=Number(sel.value);};
+      var g=el("div","group"),sel=soSelect(soVis(st.acc).map(function(a){return [a.id,a.name];}),st.acc);sel.onchange=function(){st.acc=Number(sel.value);};
       g.appendChild(fieldRow("Nota",note));g.appendChild(fieldRow("Conto",sel));g.appendChild(fieldRow("Data",dt));b.appendChild(g);
       amt.oninput=function(){valid(soNum(amt.value)>0);};valid(!!m);if(!m)setTimeout(function(){amt.focus();},350);
     },function(){
@@ -1853,11 +1856,13 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
     });
   }
   function soAccSheet(a){
-    var nm=soTxt("Nome conto",a?a.name:""),cur=a?soBal(a):0,bal=soTxt("0,00",a?soFmt(cur).replace(/\./g,""):"","decimal");bal.className="valbig";
-    var kind=soSelect([["Conto corrente","Conto corrente"],["Carta","Carta"],["Contanti","Contanti"],["Risparmio","Risparmio"],["Altro","Altro"]],a?a.kind:"Conto corrente");
+    var hidden=a?!!a.hidden:false,nm=soTxt("Nome conto",a?a.name:""),cur=a?soBal(a):0,bal=soTxt("0,00",a?soFmt(cur).replace(/\./g,""):"","decimal");bal.className="valbig";
+    var kind=soSelect([["Conto corrente","Conto corrente"],["Carta","Carta"],["Contanti","Contanti"],["Investimenti","Investimenti"],["Risparmio","Risparmio"],["Altro","Altro"]],a?a.kind:"Conto corrente");
     soSheet(a?"Modifica conto":"Nuovo conto","Salva",function(b,valid,close){
       var g0=el("div","group");g0.appendChild(el("div","fr")).appendChild(bal);b.appendChild(el("div","dayh")).appendChild(el("span",null,"Saldo attuale"));b.appendChild(g0);
-      var g=el("div","group");g.appendChild(fieldRow("Nome",nm));g.appendChild(fieldRow("Tipo",kind));b.appendChild(g);
+      var g=el("div","group");g.appendChild(fieldRow("Nome",nm));g.appendChild(fieldRow("Tipo",kind));
+      var hr=el("div","fr");hr.appendChild(el("span",null,"Nascondi dalla visuale"));var hsw=switchEl(!!hidden,function(){hidden=!hidden;hsw.setAttribute("aria-checked",hidden?"true":"false");hn.textContent=hidden?"Non compare più nei menu e nell'elenco. Il saldo conta ancora nel patrimonio. Lo ritrovi sotto \"Conti nascosti\".":"";});hsw.style.marginLeft="auto";hr.appendChild(hsw);g.appendChild(hr);b.appendChild(g);
+      var hn=el("div","note",hidden?"Non compare più nei menu e nell'elenco. Il saldo conta ancora nel patrimonio. Lo ritrovi sotto \"Conti nascosti\".":"");b.appendChild(hn);
       var df=el("div","note","");b.appendChild(df);
       function showDiff(){if(!a){df.textContent="Scrivi quanto hai su questo conto adesso: da qui in poi il saldo si aggiorna con i tuoi movimenti.";return;}var d=soNum(bal.value)-cur;df.textContent=Math.abs(d)<0.005?"Correggi il saldo se non coincide con quello reale della banca.":"Differenza rispetto a prima: "+soSgn(d)+". Il patrimonio si aggiorna di conseguenza.";}
       bal.addEventListener("input",showDiff);showDiff();
@@ -1866,9 +1871,9 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
         else b.appendChild(dangerRow("Elimina conto",null,function(reset){DB.soDel("accounts",a.id).then(function(){SO.accs=SO.accs.filter(function(x){return x!==a;});close();soRenderAll();soToast("Conto eliminato");}).catch(function(e){reset();fail("Non sono riuscito a eliminare.",e);});}));}
       nm.oninput=function(){valid(nm.value.trim().length>0);};valid(!!a);
     },function(){
-      var v=soNum(bal.value),emoji={"Carta":"💳","Contanti":"💵","Risparmio":"🐖"}[kind.value]||"🏦";
-      if(a){a.start_balance+=v-cur;a.name=nm.value.trim();a.kind=kind.value;a.emoji=emoji;soRenderAll();soRun(DB.soUpd("accounts",a.id,{name:a.name,kind:a.kind,emoji:a.emoji,start_balance:a.start_balance}),function(){soToast("Conto salvato");});}
-      else DB.soIns("accounts",{name:nm.value.trim(),kind:kind.value,emoji:emoji,start_balance:v,position:SO.accs.length+1}).then(function(r){r.start_balance=Number(r.start_balance);SO.accs.push(r);soRenderAll();soToast("Conto salvato");}).catch(function(e){fail("Non sono riuscito a salvare.",e);});
+      var v=soNum(bal.value),emoji={"Carta":"💳","Contanti":"💵","Investimenti":"📈","Risparmio":"🐖"}[kind.value]||"🏦";
+      if(a){a.start_balance+=v-cur;a.name=nm.value.trim();a.kind=kind.value;a.emoji=emoji;var hch=!!a.hidden!==hidden;a.hidden=hidden;soRenderAll();soRun(DB.soUpd("accounts",a.id,hch?{name:a.name,kind:a.kind,emoji:a.emoji,start_balance:a.start_balance,hidden:hidden}:{name:a.name,kind:a.kind,emoji:a.emoji,start_balance:a.start_balance}),function(){soToast("Conto salvato");});}
+      else DB.soIns("accounts",Object.assign({name:nm.value.trim(),kind:kind.value,emoji:emoji,start_balance:v,position:SO.accs.length+1},hidden?{hidden:true}:{})).then(function(r){r.start_balance=Number(r.start_balance);SO.accs.push(r);soRenderAll();soToast("Conto salvato");}).catch(function(e){fail("Non sono riuscito a salvare.",e);});
     });
   }
   function soGoalSheet(){
@@ -1902,7 +1907,7 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
       var tsel=soSelect(["ETF","Azioni","Crypto","Materie prime","Obbligazioni","Altro"].map(function(x){return [x,x];}),"ETF");tsel.onchange=function(){st.ty=tsel.value;};
       var rn=fieldRow("Nome",nn),rt=fieldRow("Sigla",tk),ry=fieldRow("Tipo",tsel);rn.hidden=rt.hidden=ry.hidden=st.id!=="new";g.appendChild(rn);g.appendChild(rt);g.appendChild(ry);
       g.appendChild(fieldRow("Quantità",qty));g.appendChild(fieldRow("Prezzo per unità €",prc));g.appendChild(fieldRow("Data",dt));
-      var as=soSelect([["none","Nessuno (già posseduto)"]].concat(SO.accs.map(function(a){return [a.id,a.name];})),"none");as.onchange=function(){st.acc=as.value;upd();};g.appendChild(fieldRow("Soldi da/verso",as));
+      var as=soSelect([["none","Nessuno (già posseduto)"]].concat(soVis().map(function(a){return [a.id,a.name];})),"none");as.onchange=function(){st.acc=as.value;upd();};g.appendChild(fieldRow("Soldi da/verso",as));
       b.appendChild(g);b.appendChild(tot);
       sel.onchange=function(){st.id=sel.value==="new"?"new":Number(sel.value);rn.hidden=rt.hidden=ry.hidden=st.id!=="new";if(st.id!=="new"){var a=soAsset(st.id);prc.value=String(a.price).replace(".",",");}upd();};
       if(st.id!=="new"&&soAsset(st.id))prc.value=String(soAsset(st.id).price).replace(".",",");
@@ -2024,11 +2029,11 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
       b.appendChild(el("div","big "+(tdy>0?"up":""),soSgn(tdy)));b.appendChild(el("div","sm","oggi · "+tn+(tn===1?" movimento":" movimenti")));
       var t=el("div","two"),a=el("div"),c=el("div");a.appendChild(el("span",null,"Entrate del mese"));a.appendChild(el("b","up",soSgn(soMonthSum("in",cm),0)));
       c.appendChild(el("span",null,"Uscite del mese"));c.appendChild(el("b","dn",soSgn(-soMonthSum("out",cm),0)));t.appendChild(a);t.appendChild(c);b.appendChild(t);});
-    card("pat","🏦","blue","Patrimonio",SO.accs.length+(SO.accs.length===1?" conto":" conti")+" + investimenti",function(b){
-      b.appendChild(el("div","big",soEur(nw,0)));var cash=SO.accs.filter(function(a){return a.kind==="Contanti";}).reduce(function(s,a){return s+soBal(a);},0);
+    card("pat","🏦","blue","Patrimonio",soVis().length+(soVis().length===1?" conto":" conti")+" + investimenti",function(b){
+      b.appendChild(el("div","big",soEur(nw,0)));var cash=soVis().filter(function(a){return a.kind==="Contanti";}).reduce(function(s,a){return s+soBal(a);},0);
       b.appendChild(el("div","sm","contanti "+soEur(cash,0)+" · investimenti "+soEur(soInv(),0)));
-      var cmp=el("div","cmp"),cols=["#1cb0f6","#58cc02","#ff9600","#a560e8","#ff86d0","#2b70e0"],tot=Math.max(1,SO.accs.reduce(function(s,a){return s+Math.max(0,soBal(a));},0)+soInv());
-      SO.accs.map(function(a){return Math.max(0,soBal(a));}).concat([soInv()]).forEach(function(x,i){if(x<=0)return;var e=document.createElement("i");e.style.width=Math.max(1,x/tot*100)+"%";e.style.background=cols[i%cols.length];cmp.appendChild(e);});b.appendChild(cmp);});
+      var cmp=el("div","cmp"),cols=["#1cb0f6","#58cc02","#ff9600","#a560e8","#ff86d0","#2b70e0"],tot=Math.max(1,soPatList().reduce(function(s,a){return s+Math.max(0,a.v);},0));
+      soPatList().map(function(a){return Math.max(0,a.v);}).forEach(function(x,i){if(x<=0)return;var e=document.createElement("i");e.style.width=Math.max(1,x/tot*100)+"%";e.style.background=cols[i%cols.length];cmp.appendChild(e);});b.appendChild(cmp);});
     var inv=soInv(),cost=soCost(),gain=inv-cost,gp2=cost?gain/cost*100:0;
     card("inv","📈","green","Investimenti",SO.assets.length+(SO.assets.length===1?" posizione":" posizioni"),function(b){
       b.appendChild(el("div","big",soEur(inv,0)));
@@ -2097,15 +2102,17 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
     var nw=soNet();
     var hh=el("div","panel hhero");hh.appendChild(el("div","big",soEur(nw)));
     var cmp=el("div","cmp"),cols=["#1cb0f6","#58cc02","#ff9600","#a560e8","#ff86d0","#2b70e0"];
-    var list=SO.accs.map(function(a){return {n:a.name,v:soBal(a)};}).concat([{n:"Investimenti",v:soInv()}]),tot=Math.max(1,list.reduce(function(s,a){return s+Math.max(0,a.v);},0));
+    var list=soPatList(),tot=Math.max(1,list.reduce(function(s,a){return s+Math.max(0,a.v);},0));
     list.forEach(function(a,i){if(a.v<=0)return;var x=document.createElement("i");x.style.width=Math.max(1,a.v/tot*100)+"%";x.style.background=cols[i%cols.length];cmp.appendChild(x);});hh.appendChild(cmp);
     var lg=el("div","legend");lg.style.marginTop="10px";
     list.forEach(function(a,i){var r=el("div","lg");r.style.cursor="default";var d=el("i");d.style.background=cols[i%cols.length];r.appendChild(d);r.appendChild(el("span",null,a.n));r.appendChild(el("b",null,soEur(a.v,0)));r.appendChild(el("em",null,nw>0?soFmt(a.v/nw*100,0)+"%":"—"));lg.appendChild(r);});hh.appendChild(lg);v.appendChild(hh);
     var w=el("div"),h=el("div","sec-h");h.appendChild(el("h2",null,"I tuoi conti"));w.appendChild(h);var gr=el("div","group");
-    SO.accs.forEach(function(a){var r=el("button","row ic");r.type="button";r.appendChild(tile(a.emoji,a.kind==="Contanti"?"green":"blue"));var ct=el("span","ct");ct.appendChild(el("b",null,a.name));ct.appendChild(el("small",null,a.kind));r.appendChild(ct);
-      var b=el("span","vals",soEur(soBal(a)));b.style.fontWeight="800";r.appendChild(b);r.appendChild(chevEl());r.onclick=function(){soAccSheet(a);};gr.appendChild(r);});
+    function accRow(a){var r=el("button","row ic");r.type="button";r.appendChild(tile(a.emoji,a.kind==="Contanti"?"green":"blue"));var ct=el("span","ct");ct.appendChild(el("b",null,a.name));ct.appendChild(el("small",null,a.kind));r.appendChild(ct);
+      var b=el("span","vals",soEur(soBal(a)));b.style.fontWeight="800";r.appendChild(b);r.appendChild(chevEl());r.onclick=function(){soAccSheet(a);};if(a.hidden)r.style.opacity=".6";gr.appendChild(r);}
+    soVis().forEach(accRow);
     var ri=el("button","row ic");ri.type="button";ri.appendChild(tile("📈","green"));var ci=el("span","ct");ci.appendChild(el("b",null,"Investimenti"));ci.appendChild(el("small",null,"dalla sezione Investimenti"));ri.appendChild(ci);var bi=el("span","vals",soEur(soInv()));bi.style.fontWeight="800";ri.appendChild(bi);ri.appendChild(chevEl());ri.onclick=function(){soGo("inv");};gr.appendChild(ri);
     var na=el("button","row addrow","＋ Nuovo conto");na.type="button";na.style.color="var(--accent)";na.style.fontWeight="700";na.onclick=function(){soAccSheet(null);};gr.appendChild(na);
+    var hd2=soHid();if(hd2.length){var th=el("button","row ic");th.type="button";th.appendChild(tile(SO.showHid?"🙈":"👁️","blue"));var ch2=el("span","ct");ch2.appendChild(el("b",null,SO.showHid?"Chiudi i conti nascosti":"Conti nascosti ("+hd2.length+")"));ch2.appendChild(el("small",null,"il saldo conta comunque nel totale"));th.appendChild(ch2);th.appendChild(chevEl());th.onclick=function(){SO.showHid=!SO.showHid;soRenderAll();};gr.appendChild(th);if(SO.showHid)hd2.forEach(accRow);}
     w.appendChild(gr);var ft=el("div","foot","Quando registri un movimento scegli il conto: il saldo si aggiorna da solo. Tocca un conto per correggere il saldo se non coincide con la banca.");ft.style.margin="8px 4px 0";w.appendChild(ft);v.appendChild(w);
     /* andamento: dal patrimonio ricostruito mese per mese */
     var ch=el("div","panel"),hd=el("div","sec-h");hd.style.margin="0 0 4px";hd.appendChild(el("h2",null,"Ultimi 6 mesi"));ch.appendChild(hd);
