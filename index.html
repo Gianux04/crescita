@@ -909,8 +909,8 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
   /* ---------- livello dati ---------- */
   function must(r){if(r.error)throw r.error;return r.data;}
   /*RESTORE-START*/
-  var RSPEC=[["accounts",1,{}],["categories",1,{}],["movements",0,{category_id:"categories",account_id:"accounts"}],["quick_expenses",0,{category_id:"categories",last_account_id:"accounts"}],["assets",1,{}],["asset_ops",0,{asset_id:"assets",account_id:"accounts"}],["asset_prices",0,{asset_id:"assets"}],["habits",1,{}],["habit_log",0,{habit_id:"habits"}],["weights",0,{}],["exams",0,{}],["goals",0,{}],["diet_plan",0,{}],["books",0,{}],["wk_exercises",1,{}],["wk_templates",1,{}],["wk_template_items",0,{template_id:"wk_templates",exercise_id:"wk_exercises"}],["wk_sessions",1,{template_id:"wk_templates"}],["wk_sets",0,{session_id:"wk_sessions",exercise_id:"wk_exercises"}],["meals",1,{}],["meal_foods",1,{meal_id:"meals"}],["meal_done",0,{meal_id:"meals"}],["diet_adj",0,{food_id:"meal_foods"}],["mood_log",0,{}]];
-  var RREQ={asset_ops:{asset_id:1},asset_prices:{asset_id:1},habit_log:{habit_id:1},wk_template_items:{template_id:1,exercise_id:1},wk_sets:{session_id:1,exercise_id:1},meal_foods:{meal_id:1},meal_done:{meal_id:1}};
+  var RSPEC=[["accounts",1,{}],["categories",1,{}],["movements",0,{category_id:"categories",account_id:"accounts"}],["transfers",0,{from_account_id:"accounts",to_account_id:"accounts"}],["quick_expenses",0,{category_id:"categories",last_account_id:"accounts"}],["assets",1,{}],["asset_ops",0,{asset_id:"assets",account_id:"accounts"}],["asset_prices",0,{asset_id:"assets"}],["habits",1,{}],["habit_log",0,{habit_id:"habits"}],["weights",0,{}],["exams",0,{}],["goals",0,{}],["diet_plan",0,{}],["books",0,{}],["wk_exercises",1,{}],["wk_templates",1,{}],["wk_template_items",0,{template_id:"wk_templates",exercise_id:"wk_exercises"}],["wk_sessions",1,{template_id:"wk_templates"}],["wk_sets",0,{session_id:"wk_sessions",exercise_id:"wk_exercises"}],["meals",1,{}],["meal_foods",1,{meal_id:"meals"}],["meal_done",0,{meal_id:"meals"}],["diet_adj",0,{food_id:"meal_foods"}],["mood_log",0,{}]];
+  var RREQ={transfers:{from_account_id:1,to_account_id:1},asset_ops:{asset_id:1},asset_prices:{asset_id:1},habit_log:{habit_id:1},wk_template_items:{template_id:1,exercise_id:1},wk_sets:{session_id:1,exercise_id:1},meal_foods:{meal_id:1},meal_done:{meal_id:1}};
   function restoreCheck(T){
     var counts=[],any=false,err=null;
     if(!T||typeof T!=="object")return {err:"File vuoto o non valido.",counts:counts};
@@ -1029,8 +1029,9 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
         return Promise.all([
           paged("accounts",["position","id"]),paged("categories",["position","id"]),paged("movements",["day","id"]),paged("quick_expenses",["position","id"]),
           paged("assets",["position","id"]),paged("asset_ops",["id"]),paged("asset_prices",["asset_id","day"]),
-          client.from("app_settings").select("wealth_goal").maybeSingle().then(function(r){return r.error?undefined:(r.data?r.data.wealth_goal:null);}).catch(function(){return undefined;})
-        ]).then(function(a){return {accounts:a[0],categories:a[1],movements:a[2],quick:a[3],assets:a[4],ops:a[5],prices:a[6],goal:a[7]};});
+          client.from("app_settings").select("wealth_goal").maybeSingle().then(function(r){return r.error?undefined:(r.data?r.data.wealth_goal:null);}).catch(function(){return undefined;}),
+          paged("transfers",["day","id"]).catch(function(){return null;})
+        ]).then(function(a){return {accounts:a[0],categories:a[1],movements:a[2],quick:a[3],assets:a[4],ops:a[5],prices:a[6],goal:a[7],transfers:a[8]};});
       },
       soIns:function(t,row){row.user_id=uid;return client.from(t).insert(row).select().single().then(must);},
       soUpd:function(t,id,patch){return client.from(t).update(patch).eq("id",id).then(must);},
@@ -1076,7 +1077,7 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
       delVer:function(ver){return client.from("meals").delete().eq("valid_from",ver).then(must);},
       restoreAll:function(T,progress){var self=this;return restoreData(client,uid,T,function(){return self.exportAll();},progress);},
       exportAll:function(){
-        var T=[["accounts",["id"]],["categories",["id"]],["movements",["id"]],["quick_expenses",["id"]],["assets",["id"]],["asset_ops",["id"]],["asset_prices",["asset_id","day"]],["habits",["id"]],["habit_log",["day","habit_id"]],["weights",["day"]],["exams",["id"]],["goals",["id"]],["diet_plan",["weekday"]],["books",["id"]],["wk_exercises",["id"]],["wk_templates",["id"]],["wk_template_items",["template_id","exercise_id"]],["wk_sessions",["id"]],["wk_sets",["session_id","exercise_id","set_no"]],["meals",["id"]],["meal_foods",["id"]],["meal_done",["day","meal_id"]],["diet_adj",["id"]],["mood_log",["day"]],["app_settings",["user_id"]]];
+        var T=[["accounts",["id"]],["categories",["id"]],["movements",["id"]],["transfers",["id"]],["quick_expenses",["id"]],["assets",["id"]],["asset_ops",["id"]],["asset_prices",["asset_id","day"]],["habits",["id"]],["habit_log",["day","habit_id"]],["weights",["day"]],["exams",["id"]],["goals",["id"]],["diet_plan",["weekday"]],["books",["id"]],["wk_exercises",["id"]],["wk_templates",["id"]],["wk_template_items",["template_id","exercise_id"]],["wk_sessions",["id"]],["wk_sets",["session_id","exercise_id","set_no"]],["meals",["id"]],["meal_foods",["id"]],["meal_done",["day","meal_id"]],["diet_adj",["id"]],["mood_log",["day"]],["app_settings",["user_id"]]];
         var out={};
         function all(t,ord){
           var rows=[],from=0,step=1000;
@@ -1987,7 +1988,7 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
       var hr=el("div");hr.style.cssText="height:.5px;background:var(--sep);margin:20px 0 16px";pad.appendChild(hr);
       var rt=el("div",null,"Ripristina da un backup");rt.style.cssText="font-weight:700;margin-bottom:6px";pad.appendChild(rt);
       var rp=el("div","muted","Se hai perso dei dati o hai rifatto il database, scegli un file di backup: sostituisce i dati attuali con quelli del file.");rp.style.cssText="font-size:14px;margin-bottom:12px";pad.appendChild(rp);
-      var RN={accounts:"conti",categories:"categorie",movements:"movimenti",quick_expenses:"spese rapide",assets:"investimenti",asset_ops:"operazioni",asset_prices:"prezzi",habits:"abitudini",habit_log:"spunte",weights:"pesate",exams:"esami",goals:"obiettivi",diet_plan:"giorni dieta",books:"libri",wk_exercises:"esercizi",wk_templates:"schede",wk_template_items:"esercizi nelle schede",wk_sessions:"allenamenti",wk_sets:"serie",meals:"pasti",meal_foods:"alimenti",meal_done:"pasti spuntati",diet_adj:"eccezioni dieta",mood_log:"umori"};
+      var RN={accounts:"conti",categories:"categorie",movements:"movimenti",transfers:"giroconti",quick_expenses:"spese rapide",assets:"investimenti",asset_ops:"operazioni",asset_prices:"prezzi",habits:"abitudini",habit_log:"spunte",weights:"pesate",exams:"esami",goals:"obiettivi",diet_plan:"giorni dieta",books:"libri",wk_exercises:"esercizi",wk_templates:"schede",wk_template_items:"esercizi nelle schede",wk_sessions:"allenamenti",wk_sets:"serie",meals:"pasti",meal_foods:"alimenti",meal_done:"pasti spuntati",diet_adj:"eccezioni dieta",mood_log:"umori"};
       if(restorePending){
         var rpd=restorePending,box=el("div","muted");box.style.cssText="font-size:14px;line-height:1.5;margin-bottom:12px";
         box.textContent="File: "+rpd.name+(rpd.at?" · salvato il "+dayLabel(rpd.at.slice(0,10))+" "+rpd.at.slice(0,4):"")+". Contiene: "+rpd.counts.filter(function(c){return c[1]>0;}).map(function(c){return c[1]+" "+(RN[c[0]]||c[0]);}).join(", ")+".";
@@ -2033,7 +2034,7 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
   }
 
   /* ================= SOLDI ================= */
-  var SO={loaded:false,accs:[],cats:[],movs:[],quick:[],assets:[],ops:[],prices:{},goal:100000,goalOk:true,
+  var SO={loaded:false,trs:[],trOk:false,accs:[],cats:[],movs:[],quick:[],assets:[],ops:[],prices:{},goal:100000,goalOk:true,
     view:"hub",month:todayIso.slice(0,7),catMode:"out",catHi:null,showAll:false,edit:false,range:"1M",sel:"tot",invMode:"pos",invHi:null};
   var soNeed=false;
   function soFmt(n,d){d=d==null?2:d;return Number(n).toLocaleString("it-IT",{minimumFractionDigits:d,maximumFractionDigits:d});}
@@ -2055,6 +2056,7 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
     var b=a.start_balance;
     SO.movs.forEach(function(m){if(m.account_id===a.id)b+=m.kind==="out"?-m.amount:m.amount;});
     SO.ops.forEach(function(o){if(o.account_id===a.id)b+=soOpCash(o);});
+    SO.trs.forEach(function(t){if(t.from_account_id===a.id)b-=t.amount;if(t.to_account_id===a.id)b+=t.amount;});
     return b;
   }
   function soVis(keep){return SO.accs.filter(function(a){return !a.hidden||a.id===keep;});}
@@ -2075,11 +2077,13 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
   function soNet(){return soAccTotal()+soInv();}
   function soMonthSum(kind,m){return SO.movs.filter(function(x){return x.kind===kind&&x.day.indexOf(m)===0;}).reduce(function(s,x){return s+x.amount;},0);}
   function soDaySum(d){return SO.movs.filter(function(m){return m.day===d;}).reduce(function(s,m){return s+(m.kind==="out"?-m.amount:m.amount);},0);}
+  function soTrSort(){SO.trs.sort(function(a,b){return a.day<b.day?1:a.day>b.day?-1:b.id-a.id;});}
   function soSort(){SO.movs.sort(function(a,b){return a.day<b.day?1:a.day>b.day?-1:b.id-a.id;});}
   function soBuild(d){
     SO.accs=(d.accounts||[]).map(function(r){r.start_balance=Number(r.start_balance)||0;return r;});
     SO.cats=d.categories||[];
     SO.movs=(d.movements||[]).map(function(r){r.amount=Number(r.amount);return r;});soSort();
+    SO.trOk=Array.isArray(d.transfers);SO.trs=(d.transfers||[]).map(function(r){r.amount=Number(r.amount);return r;});soTrSort();
     SO.quick=(d.quick||[]).map(function(r){r.amount=Number(r.amount);return r;}).sort(function(a,b){return a.position-b.position||a.id-b.id;});
     SO.assets=(d.assets||[]).map(function(r){r.price=Number(r.price)||0;return r;}).sort(function(a,b){return a.position-b.position||a.id-b.id;});
     SO.ops=(d.ops||[]).map(function(r){r.quantity=Number(r.quantity);r.price=Number(r.price);r.fee=Number(r.fee)||0;return r;});
@@ -2164,6 +2168,34 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
       else soAddMov(row).then(function(r){soToast((st.kind==="out"?"Uscita ":"Entrata ")+soSgn(st.kind==="out"?-a:a)+" salvata",function(){soDelMov(r.id);});}).catch(function(e){fail("Non sono riuscito a salvare.",e);});
     });
   }
+  function soDelTr(id){
+    var i=SO.trs.findIndex(function(t){return t.id===id;});if(i<0)return null;var t=SO.trs.splice(i,1)[0];soRenderAll();
+    soRun(DB.soDel("transfers",id));return t;
+  }
+  function soAddTr(row){
+    return DB.soIns("transfers",row).then(function(r){r.amount=Number(r.amount);SO.trs.push(r);soTrSort();soRenderAll();return r;});
+  }
+  function soTrSheet(t){
+    if(!SO.trOk){toast("Per i giroconti serve prima lo script giroconto.sql in Supabase.");return;}
+    var vis=soVis();if(!t&&vis.length<2){toast("Servono almeno due conti per fare un giroconto.");return;}
+    var st={from:t?t.from_account_id:(vis[0]||{}).id,to:t?t.to_account_id:(vis[1]||{}).id};
+    var amt=soTxt("0,00",t?soFmt(t.amount).replace(/\./g,""):"","decimal"),note=soTxt("Nota (facoltativa)",t&&t.note?t.note:""),dt=el("input");
+    dt.type="date";dt.value=t?t.day:todayIso;amt.className="valbig";
+    soSheet(t?"Modifica giroconto":"Nuovo giroconto",t?"Salva":"Aggiungi",function(b,valid){
+      b.appendChild(el("div","note","Sposta soldi da un conto all'altro, contanti compresi. Non conta come entrata né come uscita."));
+      var g0=el("div","group");g0.appendChild(el("div","fr")).appendChild(amt);b.appendChild(g0);
+      var g=el("div","group"),sf=soSelect(soVis(st.from).map(function(a){return [a.id,a.name];}),st.from),stt=soSelect(soVis(st.to).map(function(a){return [a.id,a.name];}),st.to);
+      g.appendChild(fieldRow("Da",sf));g.appendChild(fieldRow("A",stt));g.appendChild(fieldRow("Nota",note));g.appendChild(fieldRow("Data",dt));b.appendChild(g);
+      var msg=el("div","note","");b.appendChild(msg);
+      function chk(){st.from=Number(sf.value);st.to=Number(stt.value);var same=st.from===st.to;msg.textContent=same?"Scegli due conti diversi.":"";valid(soNum(amt.value)>0&&!same);}
+      sf.onchange=stt.onchange=amt.oninput=chk;chk();if(!t)setTimeout(function(){amt.focus();},350);
+    },function(){
+      var a=soNum(amt.value);if(a<=0||st.from===st.to)return false;
+      var row={day:dt.value||todayIso,amount:a,from_account_id:st.from,to_account_id:st.to,note:note.value.trim()||null};
+      if(t){Object.keys(row).forEach(function(k){t[k]=row[k];});soTrSort();soRenderAll();soRun(DB.soUpd("transfers",t.id,row),function(){soToast("Giroconto salvato");});}
+      else soAddTr(row).then(function(r){soToast("Giroconto di "+soEur(a)+" salvato",function(){soDelTr(r.id);});}).catch(function(e){fail("Non sono riuscito a salvare.",e);});
+    });
+  }
   function soQuickSheet(q){
     var st={c:q?q.category_id:(soCatsOf("out")[0]||{}).id},nm=soTxt("Nome (es. Terea)",q?q.name:""),am=soTxt("0,00",q?soFmt(q.amount).replace(/\./g,""):"","decimal"),em=soTxt("Emoji",q?q.emoji:"💸");em.maxLength=4;
     soSheet(q?"Modifica tasto rapido":"Nuova spesa rapida",q?"Salva":"Crea",function(b,valid,close){
@@ -2224,7 +2256,7 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
       var df=el("div","note","");b.appendChild(df);
       function showDiff(){if(!a){df.textContent="Scrivi quanto hai su questo conto adesso: da qui in poi il saldo si aggiorna con i tuoi movimenti.";return;}var d=soNum(bal.value)-cur;df.textContent=Math.abs(d)<0.005?"Correggi il saldo se non coincide con quello reale della banca.":"Differenza rispetto a prima: "+soSgn(d)+". Il patrimonio si aggiorna di conseguenza.";}
       bal.addEventListener("input",showDiff);showDiff();
-      if(a){var used=SO.movs.filter(function(m){return m.account_id===a.id;}).length+SO.ops.filter(function(o){return o.account_id===a.id;}).length;
+      if(a){var used=SO.movs.filter(function(m){return m.account_id===a.id;}).length+SO.trs.filter(function(t){return t.from_account_id===a.id||t.to_account_id===a.id;}).length+SO.ops.filter(function(o){return o.account_id===a.id;}).length;
         if(used)b.appendChild(el("div","note","Questo conto ha "+used+" movimenti o operazioni, quindi non si può eliminare. Puoi rinominarlo o correggere il saldo."));
         else b.appendChild(dangerRow("Elimina conto",null,function(reset){DB.soDel("accounts",a.id).then(function(){SO.accs=SO.accs.filter(function(x){return x!==a;});close();soRenderAll();soToast("Conto eliminato");}).catch(function(e){reset();fail("Non sono riuscito a eliminare.",e);});}));}
       nm.oninput=function(){valid(nm.value.trim().length>0);};valid(!!a);
@@ -2416,16 +2448,17 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
     var g=el("div","qgrid");
     SO.quick.forEach(function(x){var b=el("button","qb");b.type="button";b.appendChild(el("span","e",x.emoji));var t=el("span");t.style.minWidth="0";t.appendChild(el("b",null,x.name));t.appendChild(el("small",null,soEur(x.amount)));b.appendChild(t);
       if(SO.edit){var d=el("span","x","✎");b.appendChild(d);b.onclick=function(){soQuickSheet(x);};}else b.onclick=function(){soQuickAdd(x);};g.appendChild(b);});
-    var ad=el("button","qb add","＋ Nuova rapida");ad.type="button";ad.onclick=function(){soQuickSheet(null);};g.appendChild(ad);q.appendChild(g);
-    var nt=el("div","note","Tocchi, scegli il conto e la spesa di oggi è registrata.");nt.style.marginTop="10px";q.appendChild(nt);v.appendChild(q);
+    var ad=el("button","qb add","＋ Nuova rapida");ad.type="button";ad.onclick=function(){soQuickSheet(null);};if(SO.edit)g.appendChild(ad);q.appendChild(g);
+    var nt=el("div","note",SO.edit?"Tocca una spesa per modificarla, oppure aggiungine una nuova.":"Tocchi, scegli il conto e la spesa di oggi è registrata.");nt.style.marginTop="10px";q.appendChild(nt);v.appendChild(q);
     var nb=el("button","btn go","＋ Nuovo movimento");nb.type="button";nb.onclick=function(){soMovSheet(null);};v.appendChild(nb);
-    var days=[];SO.movs.forEach(function(m){if(m.day.indexOf(M)===0&&days.indexOf(m.day)<0)days.push(m.day);});
+    var tb2=el("button","btn","⇄ Giroconto tra conti");tb2.type="button";tb2.onclick=function(){soTrSheet(null);};v.appendChild(tb2);
+    var days=[];SO.movs.forEach(function(m){if(m.day.indexOf(M)===0&&days.indexOf(m.day)<0)days.push(m.day);});SO.trs.forEach(function(t){if(t.day.indexOf(M)===0&&days.indexOf(t.day)<0)days.push(t.day);});days.sort().reverse();
     var shown=SO.showAll?days:days.slice(0,3);if(M===cm&&shown.indexOf(todayIso)<0)shown.unshift(todayIso);
     if(!days.length&&M!==cm){var em=el("div","panel muted","Nessun movimento in questo mese.");v.appendChild(em);}
     shown.forEach(function(d){
-      var w=el("div"),dh=el("div","dayh");dh.appendChild(el("span",null,soDayLabel(d)));var s=soDaySum(d);dh.appendChild(el("b",s<0?"":"up",soSgn(s)));w.appendChild(dh);
-      var gr=el("div","group"),ms=SO.movs.filter(function(m){return m.day===d;});
-      if(!ms.length){var e0=el("div","row");e0.style.cursor="default";e0.appendChild(el("span","muted","Nessun movimento"));gr.appendChild(e0);}
+      var w=el("div"),dh=el("div","dayh");dh.appendChild(el("span",null,soDayLabel(d)));var s=soDaySum(d),ms=SO.movs.filter(function(m){return m.day===d;}),trd=SO.trs.filter(function(t){return t.day===d;});if(ms.length||!trd.length)dh.appendChild(el("b",s<0?"":"up",soSgn(s)));w.appendChild(dh);
+      var gr=el("div","group");
+      if(!ms.length&&!trd.length){var e0=el("div","row");e0.style.cursor="default";e0.appendChild(el("span","muted","Nessun movimento"));gr.appendChild(e0);}
       ms.forEach(function(m){
         var c=soCatOr(m.category_id,m.kind),a=soAcc(m.account_id),row=el("div","row mrow"),mh=el("button","mh");mh.type="button";mh.appendChild(soCTile(c));
         var ct=el("span","ct");ct.appendChild(el("b",null,m.note||c.name));ct.appendChild(el("small",null,c.name+" · "+(a?a.name:"—")));mh.appendChild(ct);
@@ -2437,6 +2470,17 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
         var ed2=el("button",null,"Modifica");ed2.type="button";ed2.style.color="var(--accent)";ed2.onclick=function(){soMovSheet(m);};
         var del=el("button",null,"Elimina");del.type="button";del.onclick=function(){var snap={day:m.day,kind:m.kind,category_id:m.category_id,amount:m.amount,note:m.note,account_id:m.account_id};soDelMov(m.id);soToast("Movimento eliminato",function(){soAddMov(snap).catch(function(e){fail("Non sono riuscito a ripristinarlo.",e);});});};
         acts.appendChild(ed2);acts.appendChild(del);det.appendChild(d1);det.appendChild(d2);det.appendChild(d3);det.appendChild(acts);row.appendChild(det);
+        mh.onclick=function(){row.setAttribute("data-open",row.getAttribute("data-open")==="true"?"false":"true");};gr.appendChild(row);});
+      trd.forEach(function(t){
+        var fa=soAcc(t.from_account_id),ta=soAcc(t.to_account_id),row=el("div","row mrow"),mh=el("button","mh");mh.type="button";mh.appendChild(tile("⇄","blue"));
+        var ct=el("span","ct");ct.appendChild(el("b",null,t.note||"Giroconto"));ct.appendChild(el("small",null,(fa?fa.name:"—")+" → "+(ta?ta.name:"—")));mh.appendChild(ct);
+        mh.appendChild(el("span","amt",soEur(t.amount)));row.appendChild(mh);
+        var det=el("div","det"),acts=el("div");acts.style.cssText="display:flex;gap:18px";
+        var d1=el("div");d1.appendChild(document.createTextNode("Da "));d1.appendChild(el("b",null,fa?fa.name:"—"));d1.appendChild(document.createTextNode(" a "));d1.appendChild(el("b",null,ta?ta.name:"—"));
+        var d3=el("div");d3.appendChild(document.createTextNode("Non conta come entrata né uscita"));
+        var ed2=el("button",null,"Modifica");ed2.type="button";ed2.style.color="var(--accent)";ed2.onclick=function(){soTrSheet(t);};
+        var del=el("button",null,"Elimina");del.type="button";del.onclick=function(){var snap={day:t.day,amount:t.amount,from_account_id:t.from_account_id,to_account_id:t.to_account_id,note:t.note};soDelTr(t.id);soToast("Giroconto eliminato",function(){soAddTr(snap).catch(function(e){fail("Non sono riuscito a ripristinarlo.",e);});});};
+        acts.appendChild(ed2);acts.appendChild(del);det.appendChild(d1);det.appendChild(d3);det.appendChild(acts);row.appendChild(det);
         mh.onclick=function(){row.setAttribute("data-open",row.getAttribute("data-open")==="true"?"false":"true");};gr.appendChild(row);});
       w.appendChild(gr);v.appendChild(w);
     });
@@ -2479,7 +2523,7 @@ button.card:active{transform:translateY(2px);border-bottom-width:2px}
     var hv=el("div","muted");hv.style.cssText="font-size:14px;margin-bottom:6px;font-variant-numeric:tabular-nums";ch.appendChild(hv);var host=el("div","chart plain");ch.appendChild(host);v.appendChild(ch);
     var pts=[],i,cm=todayIso.slice(0,7);
     for(i=5;i>=0;i--){var mm=soShiftMonth(cm,-i),end=i===0?todayIso:new Date(+mm.slice(0,4),+mm.slice(5),0).getFullYear()+"-"+String(new Date(+mm.slice(0,4),+mm.slice(5),0).getMonth()+1).padStart(2,"0")+"-"+String(new Date(+mm.slice(0,4),+mm.slice(5),0).getDate()).padStart(2,"0");
-      var val=0;SO.accs.forEach(function(a){var b=a.start_balance;SO.movs.forEach(function(m){if(m.account_id===a.id&&m.day<=end)b+=m.kind==="out"?-m.amount:m.amount;});SO.ops.forEach(function(o){if(o.account_id===a.id&&o.day<=end)b+=soOpCash(o);});val+=b;});
+      var val=0;SO.accs.forEach(function(a){var b=a.start_balance;SO.movs.forEach(function(m){if(m.account_id===a.id&&m.day<=end)b+=m.kind==="out"?-m.amount:m.amount;});SO.ops.forEach(function(o){if(o.account_id===a.id&&o.day<=end)b+=soOpCash(o);});SO.trs.forEach(function(t){if(t.day<=end){if(t.from_account_id===a.id)b-=t.amount;if(t.to_account_id===a.id)b+=t.amount;}});val+=b;});
       SO.assets.forEach(function(a){val+=soQtyAt(a,end)*soPriceAt(a,soDayNum(end));});
       pts.push({v:val,l:MESI3[+mm.slice(5)-1]});}
     soLine(host,pts,{label:"Patrimonio negli ultimi sei mesi",tick:function(x){return Math.abs(x)>=1000?soFmt(x/1000,1)+"k":soFmt(x,0);},x0:pts[0].l,x1:pts[5].l,hover:function(k){hv.textContent=pts[k].l+" · "+soEur(pts[k].v,0);}});hv.textContent=pts[5].l+" · "+soEur(pts[5].v,0);
